@@ -1,0 +1,70 @@
+using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+
+public class AES_CTR
+{
+    public static byte[] Encrypt(byte[] data, byte[] key, byte[] nonce)
+    {
+        using (Aes aes = Aes.Create())
+        {
+            aes.Key = key;
+            aes.Mode = CipherMode.ECB; 
+            aes.Padding = PaddingMode.None;
+
+            byte[] encrypted = new byte[data.Length];
+            byte[] counter = new byte[16];
+            Array.Copy(nonce, counter, nonce.Length);
+
+            using (ICryptoTransform encryptor = aes.CreateEncryptor())
+            {
+                for (int i = 0; i < data.Length; i += 16)
+                {
+                    byte[] encryptedCounter = encryptor.TransformFinalBlock(counter, 0, counter.Length);
+
+                    for (int j = 0; j < 16 && i + j < data.Length; j++)
+                    {
+                        encrypted[i + j] = (byte)(data[i + j] ^ encryptedCounter[j]);
+                    }
+
+                    IncrementCounter(counter);
+                }
+            }
+            return encrypted;
+        }
+    }
+
+    public static byte[] Decrypt(byte[] data, byte[] key, byte[] nonce)
+    {
+        
+        return Encrypt(data, key, nonce);
+    }
+
+    private static void IncrementCounter(byte[] counter)
+    {
+        for (int i = counter.Length - 1; i >= 0; i--)
+        {
+            if (++counter[i] != 0)
+                break;
+        }
+    }
+
+    public static void Main(string[] args)
+    {
+        string plainText = "Hello AES CTR Mode!";
+        byte[] key = Encoding.UTF8.GetBytes("1234567890123456"); // 16 bytes key
+        byte[] nonce = Encoding.UTF8.GetBytes("nonce12345678"); // 12 bytes nonce
+
+        Console.WriteLine($"Original Text: {plainText}");
+
+        byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+        byte[] encryptedBytes = Encrypt(plainBytes, key, nonce);
+        string encryptedBase64 = Convert.ToBase64String(encryptedBytes);
+        Console.WriteLine($"Encrypted (Base64): {encryptedBase64}");
+
+        byte[] decryptedBytes = Decrypt(encryptedBytes, key, nonce);
+        string decryptedText = Encoding.UTF8.GetString(decryptedBytes);
+        Console.WriteLine($"Decrypted Text: {decryptedText}");
+    }
+}
